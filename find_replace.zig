@@ -2,13 +2,11 @@
 
 const std = @import("std");
 
-pub fn main() !void {
-    var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
-    defer _ = debug_allocator.deinit();
-    const gpa = debug_allocator.allocator();
-
-    const args = try std.process.argsAlloc(gpa);
-    defer std.process.argsFree(gpa, args);
+pub fn main(init: std.process.Init) !void {
+    const gpa = init.gpa;
+    const io = init.io;
+    const cwd = std.Io.Dir.cwd();
+    const args = try init.minimal.args.toSlice(init.arena.allocator());
 
     if (args.len != 5) {
         std.debug.print("usage: {s} <input_file> <output_file> <before> <after>\n", .{args[0]});
@@ -20,13 +18,13 @@ pub fn main() !void {
     const before = args[3];
     const after = args[4];
 
-    const input = try std.fs.cwd().readFileAlloc(gpa, input_filename, std.math.maxInt(u32));
+    const input = try cwd.readFileAlloc(io, input_filename, gpa, .limited(std.math.maxInt(u32)));
     defer gpa.free(input);
 
     const output = try std.mem.replaceOwned(u8, gpa, input, before, after);
     defer gpa.free(output);
 
-    try std.fs.cwd().writeFile(.{
+    try cwd.writeFile(io, .{
         .sub_path = output_filename,
         .data = output,
     });

@@ -1032,7 +1032,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     b.installArtifact(libopcodes);
-    libopcodes.addConfigHeader(opcodes_config_header);
+    libopcodes.root_module.addConfigHeader(opcodes_config_header);
     libopcodes.installHeader(upstream.path("include/dis-asm.h"), "dis-asm.h");
     libopcodes.root_module.addCMacro("HAVE_CONFIG_H", "1");
     libopcodes.root_module.addIncludePath(upstream.path("opcodes"));
@@ -1044,7 +1044,7 @@ pub fn build(b: *std.Build) void {
         .files = &.{ "dis-buf.c", "dis-init.c" },
     });
 
-    var opcodes_arch_defines: std.ArrayListUnmanaged([]const u8) = .{};
+    var opcodes_arch_defines: std.ArrayListUnmanaged([]const u8) = .empty;
 
     for (select_architectures) |select_architecture| {
         var arch_define = select_architecture;
