@@ -708,9 +708,9 @@ pub fn build(b: *std.Build) void {
         .style = .{ .autoconf_at = upstream.path("bfd/version.h") },
         .include_path = "bfdver.h",
     }, .{
-        .bfd_version = 244000000,
+        .bfd_version = @as(i64, version.major * 100 + version.minor) * 1000000 + version.patch * 10000,
         .bfd_version_package = "\"(GNU Binutils) \"",
-        .bfd_version_string = "\"2.44.0.20250215\"",
+        .bfd_version_string = b.fmt("\"{f}\"", .{version}),
         .report_bugs_to = "\"<https://sourceware.org/bugzilla/>\"",
     });
 
