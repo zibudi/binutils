@@ -1070,7 +1070,7 @@ pub fn build(b: *std.Build) void {
         var arch_define = select_architecture;
         arch_define = std.mem.replaceOwned(u8, b.allocator, arch_define, "bfd_", "") catch @panic("OOM");
         arch_define = std.mem.replaceOwned(u8, b.allocator, arch_define, "_arch", "") catch @panic("OOM");
-        opcodes_arch_defines.append(b.allocator, b.fmt("-D{s}=1", .{arch_define})) catch @panic("OOM");
+        opcodes_arch_defines.append(b.allocator, b.fmt("-DARCH_{s}", .{arch_define})) catch @panic("OOM");
 
         libopcodes.root_module.addCSourceFiles(.{
             .root = upstream.path("opcodes"),
