@@ -909,27 +909,19 @@ pub fn build(b: *std.Build) void {
         else => std.debug.panic("TODO '{s}-{s}'", .{ @tagName(target.result.cpu.arch), @tagName(target.result.os.tag) }),
     };
 
-    const find_replace_exe = b.addExecutable(.{
-        .name = "find-replace",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("find_replace.zig"),
-            .target = b.graph.host,
-        }),
-    });
-
     const generated_header_files: []const std.Build.LazyPath = &.{
-        runFindReplace(b, find_replace_exe, upstream.path("bfd/elfxx-target.h"), "elf32-target.h", "NN", "32"),
-        runFindReplace(b, find_replace_exe, upstream.path("bfd/elfxx-target.h"), "elf64-target.h", "NN", "64"),
-        runFindReplace(b, find_replace_exe, upstream.path("bfd/elfxx-aarch64.h"), "elf32-aarch64.h", "NN", "32"),
-        runFindReplace(b, find_replace_exe, upstream.path("bfd/elfxx-aarch64.h"), "elf64-aarch64.h", "NN", "64"),
-        runFindReplace(b, find_replace_exe, upstream.path("bfd/elfxx-ia64.h"), "elf32-ia64.h", "NN", "32"),
-        runFindReplace(b, find_replace_exe, upstream.path("bfd/elfxx-ia64.h"), "elf64-ia64.h", "NN", "64"),
-        runFindReplace(b, find_replace_exe, upstream.path("bfd/elfxx-kvx.h"), "elf32-kvx.h", "NN", "32"),
-        runFindReplace(b, find_replace_exe, upstream.path("bfd/elfxx-kvx.h"), "elf64-kvx.h", "NN", "64"),
-        runFindReplace(b, find_replace_exe, upstream.path("bfd/elfxx-loongarch.h"), "elf32-loongarch.h", "NN", "32"),
-        runFindReplace(b, find_replace_exe, upstream.path("bfd/elfxx-loongarch.h"), "elf64-loongarch.h", "NN", "64"),
-        runFindReplace(b, find_replace_exe, upstream.path("bfd/elfxx-riscv.h"), "elf32-riscv.h", "NN", "32"),
-        runFindReplace(b, find_replace_exe, upstream.path("bfd/elfxx-riscv.h"), "elf64-riscv.h", "NN", "64"),
+        runFindReplace(b, upstream.path("bfd/elfxx-target.h"), "elf32-target.h", "NN", "32"),
+        runFindReplace(b, upstream.path("bfd/elfxx-target.h"), "elf64-target.h", "NN", "64"),
+        runFindReplace(b, upstream.path("bfd/elfxx-aarch64.h"), "elf32-aarch64.h", "NN", "32"),
+        runFindReplace(b, upstream.path("bfd/elfxx-aarch64.h"), "elf64-aarch64.h", "NN", "64"),
+        runFindReplace(b, upstream.path("bfd/elfxx-ia64.h"), "elf32-ia64.h", "NN", "32"),
+        runFindReplace(b, upstream.path("bfd/elfxx-ia64.h"), "elf64-ia64.h", "NN", "64"),
+        runFindReplace(b, upstream.path("bfd/elfxx-kvx.h"), "elf32-kvx.h", "NN", "32"),
+        runFindReplace(b, upstream.path("bfd/elfxx-kvx.h"), "elf64-kvx.h", "NN", "64"),
+        runFindReplace(b, upstream.path("bfd/elfxx-loongarch.h"), "elf32-loongarch.h", "NN", "32"),
+        runFindReplace(b, upstream.path("bfd/elfxx-loongarch.h"), "elf64-loongarch.h", "NN", "64"),
+        runFindReplace(b, upstream.path("bfd/elfxx-riscv.h"), "elf32-riscv.h", "NN", "32"),
+        runFindReplace(b, upstream.path("bfd/elfxx-riscv.h"), "elf64-riscv.h", "NN", "64"),
     };
 
     for (generated_header_files) |header_file| {
@@ -938,12 +930,12 @@ pub fn build(b: *std.Build) void {
     }
 
     const generated_sources = std.StaticStringMap(std.Build.LazyPath).init(&[_]struct { []const u8, std.Build.LazyPath }{
-        .{ "peigen.c", runFindReplace(b, find_replace_exe, upstream.path("bfd/peXXigen.c"), "peigen.c", "XX", "pe") },
-        .{ "pepigen.c", runFindReplace(b, find_replace_exe, upstream.path("bfd/peXXigen.c"), "pepigen.c", "XX", "pep") },
-        .{ "pex64igen.c", runFindReplace(b, find_replace_exe, upstream.path("bfd/peXXigen.c"), "pex64igen.c", "XX", "pex64") },
-        .{ "pe-aarch64igen.c", runFindReplace(b, find_replace_exe, upstream.path("bfd/peXXigen.c"), "pe-aarch64igen.c", "XX", "peAArch64") },
-        .{ "pe-loongarch64igen.c", runFindReplace(b, find_replace_exe, upstream.path("bfd/peXXigen.c"), "pe-loongarch64igen.c", "XX", "peLoongArch64") },
-        .{ "pe-riscv64igen.c", runFindReplace(b, find_replace_exe, upstream.path("bfd/peXXigen.c"), "pe-riscv64igen.c", "XX", "peRiscV64") },
+        .{ "peigen.c", runFindReplace(b, upstream.path("bfd/peXXigen.c"), "peigen.c", "XX", "pe") },
+        .{ "pepigen.c", runFindReplace(b, upstream.path("bfd/peXXigen.c"), "pepigen.c", "XX", "pep") },
+        .{ "pex64igen.c", runFindReplace(b, upstream.path("bfd/peXXigen.c"), "pex64igen.c", "XX", "pex64") },
+        .{ "pe-aarch64igen.c", runFindReplace(b, upstream.path("bfd/peXXigen.c"), "pe-aarch64igen.c", "XX", "peAArch64") },
+        .{ "pe-loongarch64igen.c", runFindReplace(b, upstream.path("bfd/peXXigen.c"), "pe-loongarch64igen.c", "XX", "peLoongArch64") },
+        .{ "pe-riscv64igen.c", runFindReplace(b, upstream.path("bfd/peXXigen.c"), "pe-riscv64igen.c", "XX", "peRiscV64") },
     }, b.allocator) catch @panic("OOM");
 
     for (std.mem.concat(b.allocator, []const u8, &.{ &.{default_vector}, select_vectors }) catch @panic("OOM")) |target_vector| {
@@ -1562,14 +1554,11 @@ pub fn build(b: *std.Build) void {
     }
 }
 
-fn runFindReplace(b: *std.Build, find_replace_exe: *std.Build.Step.Compile, input: std.Build.LazyPath, output_filename: []const u8, needle: []const u8, replacement: []const u8) std.Build.LazyPath {
-    const run_find_replace = b.addRunArtifact(find_replace_exe);
-
-    run_find_replace.addFileArg(input);
-    const output = run_find_replace.addOutputFileArg(output_filename);
-    run_find_replace.addArg(needle);
-    run_find_replace.addArg(replacement);
-    return output;
+// The substitution bfd's own Makefile makes: sed -e s/NN/32/g < elfxx-target.h
+fn runFindReplace(b: *std.Build, input: std.Build.LazyPath, output_filename: []const u8, needle: []const u8, replacement: []const u8) std.Build.LazyPath {
+    const sed = b.addSystemCommand(&.{ "sed", "-e", b.fmt("s/{s}/{s}/g", .{ needle, replacement }) });
+    sed.addFileArg(input);
+    return sed.captureStdOut(.{ .basename = output_filename });
 }
 
 const ld_sources: []const []const u8 = &.{
