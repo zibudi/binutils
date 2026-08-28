@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const version: std.SemanticVersion = .{ .major = 2, .minor = 44, .patch = 0 };
+const version: std.SemanticVersion = .{ .major = 2, .minor = 45, .patch = 0 };
 
 pub fn build(b: *std.Build) void {
     const upstream = b.dependency("binutils", .{});
@@ -13,6 +13,15 @@ pub fn build(b: *std.Build) void {
 
     // Plugins have a dependency on the install prefix so they have been disabled by default in this port.
     const enable_plugins = b.option(bool, "plugins", "Enable plugins") orelse false;
+
+    const gnu_triple = b.fmt("{s}-unknown-{s}-{s}", .{
+        switch (target.result.cpu.arch) {
+            .x86 => "i386",
+            else => @tagName(target.result.cpu.arch),
+        },
+        @tagName(target.result.os.tag),
+        @tagName(target.result.abi),
+    });
 
     const libsframe_config_header = b.addConfigHeader(.{}, .{
         .HAVE_BYTESWAP_H = if (target.result.os.tag == .linux or target.result.os.tag == .wasi) true else null,
@@ -1133,14 +1142,7 @@ pub fn build(b: *std.Build) void {
         .PACKAGE_URL = "",
         .PACKAGE_VERSION = b.fmt("{f}", .{version}),
         .STDC_HEADERS = true,
-        .TARGET = b.fmt("{s}-unknown-{s}-{s}", .{
-            switch (target.result.cpu.arch) {
-                .x86 => "i386",
-                else => @tagName(target.result.cpu.arch),
-            },
-            @tagName(target.result.os.tag),
-            @tagName(target.result.abi),
-        }),
+        .TARGET = gnu_triple,
         .TARGET_PREPENDS_UNDERSCORE = 0,
         .TYPEOF_STRUCT_STAT_ST_ATIM_IS_STRUCT_TIMESPEC = if (target.result.os.tag == .linux) true else null,
         .USE_BINARY_FOPEN = null,
@@ -1200,6 +1202,174 @@ pub fn build(b: *std.Build) void {
             },
         });
     }
+
+    const gas_cpu = switch (target.result.cpu.arch) {
+        .x86, .x86_64 => "i386",
+        else => std.debug.panic("TODO gas for '{s}'", .{@tagName(target.result.cpu.arch)}),
+    };
+    const gas_env = switch (target.result.os.tag) {
+        .linux => "linux",
+        else => std.debug.panic("TODO gas for '{s}'", .{@tagName(target.result.os.tag)}),
+    };
+
+    const gas_headers = b.addWriteFiles();
+    _ = gas_headers.add("targ-cpu.h", b.fmt("#include \"tc-{s}.h\"\n", .{gas_cpu}));
+    _ = gas_headers.add("targ-env.h", b.fmt("#include \"te-{s}.h\"\n", .{gas_env}));
+    _ = gas_headers.add("obj-format.h", "#include \"obj-elf.h\"\n");
+
+    const gas_config_header = b.addConfigHeader(.{
+        .style = .{ .autoconf_undef = upstream.path("gas/config.in") },
+    }, .{
+        .AC_APPLE_UNIVERSAL_BUILD = null,
+        .AIX_WEAK_SUPPORT = null,
+        .BROKEN_ASSERT = null,
+        .CROSS_COMPILE = null,
+        .DEFAULT_ARCH = switch (target.result.cpu.arch) {
+            .x86_64 => "x86_64",
+            else => "i386",
+        },
+        .DEFAULT_COMPRESSED_DEBUG_ALGORITHM = .COMPRESS_DEBUG_GABI_ZLIB,
+        .DEFAULT_CRIS_ARCH = null,
+        .DEFAULT_EMULATION = "",
+        .DEFAULT_FLAG_COMPRESS_DEBUG = 0,
+        .DEFAULT_GENERATE_BUILD_NOTES = 0,
+        .DEFAULT_GENERATE_ELF_STT_COMMON = 0,
+        .DEFAULT_GENERATE_X86_RELAX_RELOCATIONS = 1,
+        .DEFAULT_MIPS_FIX_LOONGSON3_LLSC = null,
+        .DEFAULT_RISCV_ARCH_WITH_EXT = null,
+        .DEFAULT_RISCV_ATTR = null,
+        .DEFAULT_RISCV_ISA_SPEC = null,
+        .DEFAULT_RISCV_PRIV_SPEC = null,
+        .DEFAULT_X86_TLS_CHECK = 1,
+        .DEFAULT_X86_USED_NOTE = 0,
+        .EMULATIONS = null,
+        .ENABLE_CHECKING = null,
+        .ENABLE_NLS = null,
+        .HAVE_CFLOCALECOPYPREFERREDLANGUAGES = null,
+        .HAVE_CFPREFERENCESCOPYAPPVALUE = null,
+        .HAVE_DCGETTEXT = null,
+        .HAVE_DECL_GETOPT = true,
+        .HAVE_DECL_MEMPCPY = target.result.isGnuLibC(),
+        .HAVE_DECL_STPCPY = true,
+        .HAVE_DLFCN_H = true,
+        .HAVE_GETTEXT = null,
+        .HAVE_ICONV = null,
+        .HAVE_INTTYPES_H = true,
+        .HAVE_LC_MESSAGES = true,
+        .HAVE_MEMORY_H = true,
+        .HAVE_STDINT_H = true,
+        .HAVE_STDLIB_H = true,
+        .HAVE_STRINGS_H = true,
+        .HAVE_STRING_H = true,
+        .HAVE_STRSIGNAL = true,
+        .HAVE_ST_MTIM_TV_NSEC = if (target.result.os.tag == .linux) true else null,
+        .HAVE_ST_MTIM_TV_SEC = if (target.result.os.tag == .linux) true else null,
+        .HAVE_SYS_STAT_H = true,
+        .HAVE_SYS_TYPES_H = true,
+        .HAVE_TM_GMTOFF = true,
+        .HAVE_UNISTD_H = true,
+        .HAVE_WINDOWS_H = null,
+        .HAVE_ZSTD = null,
+        .I386COFF = null,
+        .LT_OBJDIR = ".libs/",
+        .MIPS_CPU_STRING_DEFAULT = null,
+        .MIPS_DEFAULT_64BIT = null,
+        .MIPS_DEFAULT_ABI = null,
+        .NDS32_DEFAULT_ARCH_NAME = null,
+        .NDS32_DEFAULT_AUDIO_EXT = null,
+        .NDS32_DEFAULT_DSP_EXT = null,
+        .NDS32_DEFAULT_DX_REGS = null,
+        .NDS32_DEFAULT_PERF_EXT = null,
+        .NDS32_DEFAULT_PERF_EXT2 = null,
+        .NDS32_DEFAULT_STRING_EXT = null,
+        .NDS32_DEFAULT_ZOL_EXT = null,
+        .NDS32_LINUX_TOOLCHAIN = null,
+        .NEED_DECLARATION_ENVIRON = null,
+        .NEED_DECLARATION_FFS = null,
+        .OBJ_MAYBE_AOUT = null,
+        .OBJ_MAYBE_COFF = null,
+        .OBJ_MAYBE_ECOFF = null,
+        .OBJ_MAYBE_ELF = null,
+        .OBJ_MAYBE_GENERIC = null,
+        .OBJ_MAYBE_SOM = null,
+        .PACKAGE = "gas",
+        .PACKAGE_BUGREPORT = "",
+        .PACKAGE_NAME = "gas",
+        .PACKAGE_STRING = b.fmt("gas {f}", .{version}),
+        .PACKAGE_TARNAME = "gas",
+        .PACKAGE_URL = "",
+        .PACKAGE_VERSION = b.fmt("{f}", .{version}),
+        .STDC_HEADERS = true,
+        .STRICTCOFF = null,
+        .TARGET_ALIAS = gnu_triple,
+        .TARGET_BYTES_BIG_ENDIAN = if (target.result.cpu.arch.endian() == .big) @as(i64, 1) else @as(i64, 0),
+        .TARGET_CANONICAL = gnu_triple,
+        .TARGET_CPU = switch (target.result.cpu.arch) {
+            .x86 => "i386",
+            else => @tagName(target.result.cpu.arch),
+        },
+        .TARGET_OS = b.fmt("{s}-{s}", .{ @tagName(target.result.os.tag), @tagName(target.result.abi) }),
+        .TARGET_SOLARIS_COMMENT = null,
+        .TARGET_VENDOR = "unknown",
+        .TARGET_WITH_CPU = null,
+        .USE_BINARY_FOPEN = null,
+        .USE_EF_MIPS_ABI_O32 = null,
+        .USE_EMULATIONS = null,
+        .USING_CGEN = null,
+        .VERSION = b.fmt("{f}", .{version}),
+        .YYTEXT_POINTER = true,
+        ._FILE_OFFSET_BITS = 64,
+        ._LARGE_FILES = null,
+        ._MINIX = null,
+        ._POSIX_1_SOURCE = null,
+        ._POSIX_SOURCE = null,
+        ._ALL_SOURCE = true,
+        ._GNU_SOURCE = true,
+        ._POSIX_PTHREAD_SEMANTICS = true,
+        ._TANDEM_SOURCE = true,
+        .__EXTENSIONS__ = true,
+        .WORDS_BIGENDIAN = if (target.result.cpu.arch.endian() == .big) @as(i64, 1) else null,
+    });
+
+    const as = b.addExecutable(.{
+        .name = "as",
+        .version = version,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .strip = strip,
+            .pic = pic,
+            .link_libc = true,
+        }),
+    });
+    b.installArtifact(as);
+    as.root_module.addCMacro("HAVE_CONFIG_H", "1");
+    as.root_module.addConfigHeader(gas_config_header);
+    as.root_module.addConfigHeader(bfd_header);
+    as.root_module.addConfigHeader(bfdver_header);
+    as.root_module.addIncludePath(gas_headers.getDirectory());
+    as.root_module.addIncludePath(upstream.path("gas"));
+    as.root_module.addIncludePath(upstream.path("gas/config"));
+    as.root_module.addIncludePath(upstream.path("bfd"));
+    as.root_module.addIncludePath(upstream.path("include"));
+    as.root_module.addIncludePath(upstream.path("."));
+    as.root_module.linkLibrary(bfd);
+    as.root_module.linkLibrary(libopcodes);
+    as.root_module.linkLibrary(iberty);
+    as.root_module.linkLibrary(libsframe);
+    if (b.systemIntegrationOption("zlib", .{})) {
+        as.root_module.linkSystemLibrary("z", .{});
+    } else if (b.lazyDependency("zlib", .{
+        .target = target,
+        .optimize = optimize,
+    })) |zlib_dependency| {
+        as.root_module.linkLibrary(zlib_dependency.artifact("z"));
+    }
+    as.root_module.addCSourceFiles(.{ .root = upstream.path("gas"), .files = gas_sources });
+    as.root_module.addCSourceFiles(.{
+        .root = upstream.path("gas/config"),
+        .files = &.{ b.fmt("tc-{s}.c", .{gas_cpu}), "obj-elf.c", "atof-ieee.c" },
+    });
 }
 
 fn runFindReplace(b: *std.Build, find_replace_exe: *std.Build.Step.Compile, input: std.Build.LazyPath, output_filename: []const u8, needle: []const u8, replacement: []const u8) std.Build.LazyPath {
@@ -1211,6 +1381,45 @@ fn runFindReplace(b: *std.Build, find_replace_exe: *std.Build.Step.Compile, inpu
     run_find_replace.addArg(replacement);
     return output;
 }
+
+const gas_sources: []const []const u8 = &.{
+    "app.c",
+    "as.c",
+    "atof-generic.c",
+    "codeview.c",
+    "compress-debug.c",
+    "cond.c",
+    "depend.c",
+    "dwarf2dbg.c",
+    "dw2gencfi.c",
+    "ecoff.c",
+    "ehopt.c",
+    "expr.c",
+    "flonum-copy.c",
+    "flonum-konst.c",
+    "flonum-mult.c",
+    "frags.c",
+    "gen-sframe.c",
+    "ginsn.c",
+    "hash.c",
+    "input-file.c",
+    "input-scrub.c",
+    "listing.c",
+    "literal.c",
+    "macro.c",
+    "messages.c",
+    "output-file.c",
+    "read.c",
+    "remap.c",
+    "sb.c",
+    "scfidw2gen.c",
+    "scfi.c",
+    "sframe-opt.c",
+    "stabs.c",
+    "subsegs.c",
+    "symbols.c",
+    "write.c",
+};
 
 const bulibs = [_][]const u8{ "bucomm.c", "version.c", "filemode.c" };
 const elflibs = [_][]const u8{"elfcomm.c"};
