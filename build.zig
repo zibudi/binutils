@@ -14,11 +14,17 @@ pub fn build(b: *std.Build) void {
     // Plugins have a dependency on the install prefix so they have been disabled by default in this port.
     const enable_plugins = b.option(bool, "plugins", "Enable plugins") orelse false;
 
-    const gnu_triple = b.fmt("{s}-unknown-{s}-{s}", .{
-        switch (target.result.cpu.arch) {
-            .x86 => "i386",
-            else => @tagName(target.result.cpu.arch),
-        },
+    const gnu_cpu = switch (target.result.cpu.arch) {
+        .x86 => "i386",
+        else => @tagName(target.result.cpu.arch),
+    };
+    const gnu_vendor = switch (target.result.cpu.arch) {
+        .x86, .x86_64 => "pc",
+        else => "unknown",
+    };
+    const gnu_triple = b.fmt("{s}-{s}-{s}-{s}", .{
+        gnu_cpu,
+        gnu_vendor,
         @tagName(target.result.os.tag),
         @tagName(target.result.abi),
     });
@@ -628,7 +634,6 @@ pub fn build(b: *std.Build) void {
             // "pex-djgpp.c",
             // "pex-msdos.c",
             "pex-one.c",
-            // if (target.result.os.tag == .windows) "pex-win32.c" else "pex-unix.c",
             "physmem.c",
             // "putenv.c",
             // "random.c",
@@ -691,6 +696,12 @@ pub fn build(b: *std.Build) void {
             "xstrndup.c",
             "xvasprintf.c",
         },
+    });
+    iberty.root_module.addCSourceFile(.{
+        .file = upstream.path(if (target.result.os.tag == .windows)
+            "libiberty/pex-win32.c"
+        else
+            "libiberty/pex-unix.c"),
     });
 
     const bfd_header = b.addConfigHeader(.{
@@ -1080,7 +1091,7 @@ pub fn build(b: *std.Build) void {
         .DEFAULT_FOR_COLORED_DISASSEMBLY = 0,
         .DEFAULT_FOR_FOLLOW_LINKS = 1,
         .DEFAULT_F_FOR_IFUNC_SYMBOLS = 0,
-        .DEFAULT_STRINGS_ALL = 0,
+        .DEFAULT_STRINGS_ALL = 1,
         .ENABLE_CHECKING = null,
         .ENABLE_LIBCTF = null,
         .ENABLE_NLS = null,
@@ -1231,17 +1242,17 @@ pub fn build(b: *std.Build) void {
         .DEFAULT_COMPRESSED_DEBUG_ALGORITHM = .COMPRESS_DEBUG_GABI_ZLIB,
         .DEFAULT_CRIS_ARCH = null,
         .DEFAULT_EMULATION = "",
-        .DEFAULT_FLAG_COMPRESS_DEBUG = 0,
+        .DEFAULT_FLAG_COMPRESS_DEBUG = 1,
         .DEFAULT_GENERATE_BUILD_NOTES = 0,
         .DEFAULT_GENERATE_ELF_STT_COMMON = 0,
         .DEFAULT_GENERATE_X86_RELAX_RELOCATIONS = 1,
-        .DEFAULT_MIPS_FIX_LOONGSON3_LLSC = null,
+        .DEFAULT_MIPS_FIX_LOONGSON3_LLSC = 0,
         .DEFAULT_RISCV_ARCH_WITH_EXT = null,
-        .DEFAULT_RISCV_ATTR = null,
+        .DEFAULT_RISCV_ATTR = 1,
         .DEFAULT_RISCV_ISA_SPEC = null,
         .DEFAULT_RISCV_PRIV_SPEC = null,
         .DEFAULT_X86_TLS_CHECK = 1,
-        .DEFAULT_X86_USED_NOTE = 0,
+        .DEFAULT_X86_USED_NOTE = 1,
         .EMULATIONS = null,
         .ENABLE_CHECKING = null,
         .ENABLE_NLS = null,
@@ -1304,13 +1315,10 @@ pub fn build(b: *std.Build) void {
         .TARGET_ALIAS = gnu_triple,
         .TARGET_BYTES_BIG_ENDIAN = if (target.result.cpu.arch.endian() == .big) @as(i64, 1) else @as(i64, 0),
         .TARGET_CANONICAL = gnu_triple,
-        .TARGET_CPU = switch (target.result.cpu.arch) {
-            .x86 => "i386",
-            else => @tagName(target.result.cpu.arch),
-        },
+        .TARGET_CPU = gnu_cpu,
         .TARGET_OS = b.fmt("{s}-{s}", .{ @tagName(target.result.os.tag), @tagName(target.result.abi) }),
         .TARGET_SOLARIS_COMMENT = null,
-        .TARGET_VENDOR = "unknown",
+        .TARGET_VENDOR = gnu_vendor,
         .TARGET_WITH_CPU = null,
         .USE_BINARY_FOPEN = null,
         .USE_EF_MIPS_ABI_O32 = null,
@@ -1419,20 +1427,20 @@ pub fn build(b: *std.Build) void {
         .DEFAULT_LD_ERROR_RWX_SEGMENTS = 0,
         .DEFAULT_LD_EXECSTACK = 1,
         .DEFAULT_LD_ROSEGMENT = 0,
-        .DEFAULT_LD_TEXTREL_CHECK = .textrel_check_none,
-        .DEFAULT_LD_TEXTREL_CHECK_WARNING = 0,
-        .DEFAULT_LD_WARN_EXECSTACK = 0,
+        .DEFAULT_LD_TEXTREL_CHECK = .textrel_check_warning,
+        .DEFAULT_LD_TEXTREL_CHECK_WARNING = 1,
+        .DEFAULT_LD_WARN_EXECSTACK = 2,
         .DEFAULT_LD_WARN_RWX_SEGMENTS = 1,
         .DEFAULT_LD_Z_MARK_PLT = 0,
         .DEFAULT_LD_Z_MEMORY_SEAL = 0,
         .DEFAULT_LD_Z_RELRO = 1,
         .DEFAULT_LD_Z_SEPARATE_CODE = if (target.result.os.tag == .linux) @as(i64, 1) else @as(i64, 0),
-        .DEFAULT_NEW_DTAGS = if (target.result.os.tag == .linux) @as(i64, 1) else @as(i64, 0),
+        .DEFAULT_NEW_DTAGS = 0,
         .ENABLE_CHECKING = null,
         .ENABLE_LIBCTF = null,
         .ENABLE_NLS = null,
         .EXTRA_SHLIB_EXTENSION = null,
-        .GOT_HANDLING_DEFAULT = 0,
+        .GOT_HANDLING_DEFAULT = .GOT_HANDLING_TARGET_DEFAULT,
         .HAVE_CFLOCALECOPYPREFERREDLANGUAGES = null,
         .HAVE_CFPREFERENCESCOPYAPPVALUE = null,
         .HAVE_CLOSE = true,
@@ -1482,7 +1490,7 @@ pub fn build(b: *std.Build) void {
         .PACKAGE_URL = "",
         .PACKAGE_VERSION = b.fmt("{f}", .{version}),
         .STDC_HEADERS = true,
-        .SUPPORT_ERROR_HANDLING_SCRIPT = null,
+        .SUPPORT_ERROR_HANDLING_SCRIPT = true,
         .USE_BINARY_FOPEN = null,
         .VERSION = b.fmt("{f}", .{version}),
         .WITH_XXHASH = null,
