@@ -28,6 +28,7 @@
         "README.md",
         "include/targmatch.h",
         "find_replace.zig",
+        "genscripts.zig",
     },
     .fingerprint = 0x4911b3458854c64a, // Changing this has security and trust implications.
 }
