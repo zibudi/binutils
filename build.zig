@@ -668,7 +668,7 @@ pub fn build(b: *std.Build) void {
             "vfork.c",
             // "vfprintf.c",
             // "vprintf.c",
-            // "vprintf-support.c",
+            "vprintf-support.c",
             // "vsnprintf.c",
             // "vsprintf.c",
             // "waitpid.c",
@@ -1062,6 +1062,144 @@ pub fn build(b: *std.Build) void {
         .file = upstream.path("opcodes/disassemble.c"),
         .flags = opcodes_arch_defines.items,
     });
+
+    const binutils_config_header = b.addConfigHeader(.{
+        .style = .{ .autoconf_undef = upstream.path("binutils/config.in") },
+    }, .{
+        .AC_APPLE_UNIVERSAL_BUILD = null,
+        .DEFAULT_AR_DETERMINISTIC = 0,
+        .DEFAULT_FOR_COLORED_DISASSEMBLY = 0,
+        .DEFAULT_FOR_FOLLOW_LINKS = 1,
+        .DEFAULT_F_FOR_IFUNC_SYMBOLS = 0,
+        .DEFAULT_STRINGS_ALL = 0,
+        .ENABLE_CHECKING = null,
+        .ENABLE_LIBCTF = null,
+        .ENABLE_NLS = null,
+        .EXECUTABLE_SUFFIX = "",
+        .HAVE_CFLOCALECOPYPREFERREDLANGUAGES = null,
+        .HAVE_CFPREFERENCESCOPYAPPVALUE = null,
+        .HAVE_DCGETTEXT = null,
+        .HAVE_DECL_ENVIRON = target.result.os.tag != .windows,
+        .HAVE_DECL_GETC_UNLOCKED = true,
+        .HAVE_DECL_GETOPT = true,
+        .HAVE_DECL_STPCPY = true,
+        .HAVE_DECL_STRNLEN = true,
+        .HAVE_DLFCN_H = true,
+        .HAVE_EXECUTABLE_SUFFIX = null,
+        .HAVE_FCNTL_H = true,
+        .HAVE_FSEEKO = true,
+        .HAVE_FSEEKO64 = if (target.result.isGnuLibC()) true else null,
+        .HAVE_GETC_UNLOCKED = true,
+        .HAVE_GETPAGESIZE = true,
+        .HAVE_GETTEXT = null,
+        .HAVE_GOOD_UTIME_H = true,
+        .HAVE_ICONV = null,
+        .HAVE_INTTYPES_H = true,
+        .HAVE_LC_MESSAGES = true,
+        .HAVE_LIBDEBUGINFOD = null,
+        .HAVE_LIBDEBUGINFOD_FIND_SECTION = null,
+        .HAVE_MBSTATE_T = true,
+        .HAVE_MEMORY_H = true,
+        .HAVE_MKDTEMP = true,
+        .HAVE_MKSTEMP = true,
+        .HAVE_MMAP = if (target.result.os.tag == .linux) true else null,
+        .HAVE_MSGPACK = null,
+        .HAVE_STDINT_H = true,
+        .HAVE_STDLIB_H = true,
+        .HAVE_STRINGS_H = true,
+        .HAVE_STRING_H = true,
+        .HAVE_STRUCT_STAT_ST_ATIMENSEC = null,
+        .HAVE_STRUCT_STAT_ST_ATIMESPEC_TV_NSEC = null,
+        .HAVE_STRUCT_STAT_ST_ATIM_ST__TIM_TV_NSEC = null,
+        .HAVE_STRUCT_STAT_ST_ATIM_TV_NSEC = if (target.result.os.tag == .linux) true else null,
+        .HAVE_SYS_FILE_H = true,
+        .HAVE_SYS_PARAM_H = true,
+        .HAVE_SYS_STAT_H = true,
+        .HAVE_SYS_TIME_H = true,
+        .HAVE_SYS_TYPES_H = true,
+        .HAVE_SYS_WAIT_H = true,
+        .HAVE_UNISTD_H = true,
+        .HAVE_UTIMENSAT = if (target.result.os.tag == .linux) true else null,
+        .HAVE_UTIMES = true,
+        .HAVE_WINDOWS_H = null,
+        .HAVE_ZSTD = null,
+        .ICONV_CONST = null,
+        .LT_OBJDIR = ".libs/",
+        .PACKAGE = "binutils",
+        .PACKAGE_BUGREPORT = "",
+        .PACKAGE_NAME = "binutils",
+        .PACKAGE_STRING = b.fmt("binutils {f}", .{version}),
+        .PACKAGE_TARNAME = "binutils",
+        .PACKAGE_URL = "",
+        .PACKAGE_VERSION = b.fmt("{f}", .{version}),
+        .STDC_HEADERS = true,
+        .TARGET = b.fmt("{s}-unknown-{s}-{s}", .{
+            switch (target.result.cpu.arch) {
+                .x86 => "i386",
+                else => @tagName(target.result.cpu.arch),
+            },
+            @tagName(target.result.os.tag),
+            @tagName(target.result.abi),
+        }),
+        .TARGET_PREPENDS_UNDERSCORE = 0,
+        .TYPEOF_STRUCT_STAT_ST_ATIM_IS_STRUCT_TIMESPEC = if (target.result.os.tag == .linux) true else null,
+        .USE_BINARY_FOPEN = null,
+        .VERSION = b.fmt("{f}", .{version}),
+        .YYTEXT_POINTER = true,
+        ._FILE_OFFSET_BITS = 64,
+        ._LARGE_FILES = null,
+        ._MINIX = null,
+        ._POSIX_1_SOURCE = null,
+        ._POSIX_SOURCE = null,
+        ._ALL_SOURCE = true,
+        ._GNU_SOURCE = true,
+        ._POSIX_PTHREAD_SEMANTICS = true,
+        ._TANDEM_SOURCE = true,
+        .__EXTENSIONS__ = true,
+        .WORDS_BIGENDIAN = if (target.result.cpu.arch.endian() == .big) @as(i64, 1) else null,
+    });
+
+    for (binutils_programs) |program| {
+        const exe = b.addExecutable(.{
+            .name = program[0],
+            .version = version,
+            .root_module = b.createModule(.{
+                .target = target,
+                .optimize = optimize,
+                .strip = strip,
+                .pic = pic,
+                .link_libc = true,
+            }),
+        });
+        b.installArtifact(exe);
+        exe.root_module.addCMacro("HAVE_CONFIG_H", "1");
+        exe.root_module.addConfigHeader(binutils_config_header);
+        exe.root_module.addConfigHeader(bfd_header);
+        exe.root_module.addConfigHeader(bfdver_header);
+        exe.root_module.addIncludePath(upstream.path("binutils"));
+        exe.root_module.addIncludePath(upstream.path("bfd"));
+        exe.root_module.addIncludePath(upstream.path("include"));
+        exe.root_module.linkLibrary(bfd);
+        exe.root_module.linkLibrary(libopcodes);
+        exe.root_module.linkLibrary(iberty);
+        exe.root_module.linkLibrary(libsframe);
+        if (b.systemIntegrationOption("zlib", .{})) {
+            exe.root_module.linkSystemLibrary("z", .{});
+        } else if (b.lazyDependency("zlib", .{
+            .target = target,
+            .optimize = optimize,
+        })) |zlib_dependency| {
+            exe.root_module.linkLibrary(zlib_dependency.artifact("z"));
+        }
+        exe.root_module.addCSourceFiles(.{
+            .root = upstream.path("binutils"),
+            .files = program[1],
+            .flags = &.{
+                "-DOBJDUMP_PRIVATE_VECTORS=",
+                "-Dbin_dummy_emulation=bin_vanilla_emulation",
+            },
+        });
+    }
 }
 
 fn runFindReplace(b: *std.Build, find_replace_exe: *std.Build.Step.Compile, input: std.Build.LazyPath, output_filename: []const u8, needle: []const u8, replacement: []const u8) std.Build.LazyPath {
@@ -1073,6 +1211,20 @@ fn runFindReplace(b: *std.Build, find_replace_exe: *std.Build.Step.Compile, inpu
     run_find_replace.addArg(replacement);
     return output;
 }
+
+const bulibs = [_][]const u8{ "bucomm.c", "version.c", "filemode.c" };
+const elflibs = [_][]const u8{"elfcomm.c"};
+const debug_sources = [_][]const u8{ "rddbg.c", "debug.c", "stabs.c", "rdcoff.c" };
+const write_debug_sources = debug_sources ++ [_][]const u8{"wrstabs.c"};
+
+const binutils_programs: []const struct { []const u8, []const []const u8 } = &.{
+    .{ "ar", &([_][]const u8{ "arparse.c", "arlex.c", "not-ranlib.c", "arsup.c", "rename.c", "binemul.c", "emul_vanilla.c" } ++ bulibs) },
+    .{ "nm", &([_][]const u8{ "nm.c", "demanguse.c" } ++ bulibs) },
+    .{ "objcopy", &([_][]const u8{ "not-strip.c", "rename.c" } ++ write_debug_sources ++ bulibs) },
+    .{ "strip", &([_][]const u8{ "is-strip.c", "rename.c" } ++ write_debug_sources ++ bulibs) },
+    .{ "objdump", &([_][]const u8{ "objdump.c", "dwarf.c", "prdbg.c", "demanguse.c" } ++ debug_sources ++ bulibs ++ elflibs) },
+    .{ "readelf", &([_][]const u8{ "readelf.c", "version.c", "unwind-ia64.c", "dwarf.c", "demanguse.c" } ++ elflibs) },
+};
 
 const elf_sources: []const []const u8 = &.{
     "elf.c",
